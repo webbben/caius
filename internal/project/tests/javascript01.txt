@@ -1,0 +1,12 @@
+import { LoginForm } from "loginFormComponent";
+
+const LoginPage = () => {
+  const headerText = "Welcome to our website! Please login";
+
+  return (
+    <div>
+      <h1>{headerText}</h1>
+      <LoginForm />
+    </div>
+  );
+}

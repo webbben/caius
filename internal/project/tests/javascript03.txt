@@ -1,0 +1,22 @@
+let todoList = [];
+
+function addTask(task) {
+  todoList.push(task);
+  console.log("Task added:", task);
+}
+
+function removeTask(index) {
+  if (index >= 0 && index < todoList.length) {
+    const removed = todoList.splice(index, 1);
+    console.log("Task removed:", removed[0]);
+  } else {
+    console.log("Invalid index");
+  }
+}
+
+function listTasks() {
+  console.log("To-Do List:");
+  todoList.forEach((task, index) => console.log(`${index + 1}. ${task}`));
+}
+
+export { addTask, removeTask, listTasks };

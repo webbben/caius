@@ -1,0 +1,10 @@
+let isDarkMode = false;
+
+function toggleTheme() {
+  isDarkMode = !isDarkMode;
+  const theme = isDarkMode ? "Dark Mode" : "Light Mode";
+  document.body.className = isDarkMode ? "dark" : "light";
+  console.log("Theme changed to:", theme);
+}
+
+document.getElementById("themeButton").addEventListener("click", toggleTheme);
