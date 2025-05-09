@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/webbben/caius/internal/project"
@@ -22,12 +23,34 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		response, err := project.AnalyzeFileBasic("/Users/benwebb/dev/personal/ai-tools/ai-agent/internal/project/tests/javascript01.txt", "index.js")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to analyze file: %q", err)
+		if len(args) == 0 {
+			fmt.Fprintln(os.Stderr, "Usage: a directory or file path is required.")
+			os.Exit(1)
 		}
-		fmt.Println(response.Type)
-		fmt.Println(response.Description)
+		path, err := filepath.Abs(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error resolving path:", err)
+			os.Exit(1)
+		}
+
+		fileinfo, err := os.Stat(path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error getting file information:", err)
+			os.Exit(1)
+		}
+
+		if fileinfo.IsDir() {
+			project.AnalyzeDirectory(path)
+		} else {
+			filename := filepath.Base(path)
+			fmt.Printf("Analyzing %s ...\n", filename)
+			response, err := project.AnalyzeFileBasic(path, filename)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to analyze file: %q", err)
+			}
+			fmt.Println("file type:", response.Type)
+			fmt.Println("description:", response.Description)
+		}
 	},
 }
 

@@ -1,0 +1,9 @@
+todoApp/src/index.js (javascript code) - The main entry point for the React application, rendering the root component.
+todoApp/src/App.js (javascript code) - The main component of the Todo List application, managing state and rendering child components.
+todoApp/src/components/TodoList.js (javascript code) - A React component that displays the list of todo items, allowing users to view all current tasks.
+todoApp/src/components/TodoItem.js (javascript code) - A single todo item component that shows the task description and provides buttons for editing or deleting the item.
+todoApp/src/components/AddTodo.js (javascript code) - A form component that allows users to input a new todo item and add it to the list.
+todoApp/src/utils/storage.js (javascript code) - Utility functions for saving and retrieving todos from local storage.
+todoApp/public/index.html (html) - The main HTML file of the application, linking the bundled JavaScript and rendering the root div.
+todoApp/src/styles/styles.css (css) - A stylesheet defining the layout and appearance of the Todo List application.
+todoApp/package.json (json) - Configuration file for the project, containing dependencies, scripts, and metadata.

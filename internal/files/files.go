@@ -65,6 +65,46 @@ func CommonFileExtensionMap(ext string) string {
 	}
 }
 
+// given a file type, resolve it to its standardized display form
+func FileTypeResolver(fileType string) string {
+	fileType = strings.ToLower(fileType)
+	switch fileType {
+	// CONFIG TYPES
+	case "yaml", "yml":
+		return "YAML"
+	case "xml":
+		return "XML"
+	case "json", "jsonl":
+		return "JSON data"
+	// TEXT TYPES
+	case "markdown", "md":
+		return "markdown"
+	case "text/plain", "plain text", "text", "txt":
+		return "plain text"
+	// CODE TYPES
+	case "html", "html5", "hypertext markup language":
+		return "HTML"
+	case "css", "style sheet", "styles":
+		return "CSS"
+	case "python", "py":
+		return "python code"
+	case "go", "golang":
+		return "golang code"
+	case "bash", "sh", "shell":
+		return "bash/shell script"
+	case "js", "mjs", "javascript":
+		return "javascript code"
+	case "jsx", "tsx", "react":
+		return "react code"
+	case "ts", "typescript":
+		return "typescript code"
+	case "cs", "c-sharp", "c sharp", "c#":
+		return "c-sharp code"
+	default:
+		return fileType
+	}
+}
+
 func ReservedFileMap(filename string) string {
 	filename = strings.ToLower(filename)
 	switch filename {
@@ -78,9 +118,7 @@ func ReservedFileMap(filename string) string {
 		return "javascript/typescript project dependency lockfile"
 	case ".gitignore":
 		return "gitignore file"
-	case "readme.md":
-		return "readme file containing project information/documentation"
-	case "readme.txt":
+	case "readme.md", "readme.txt", "readme":
 		return "readme file containing project information/documentation"
 	default:
 		return ""

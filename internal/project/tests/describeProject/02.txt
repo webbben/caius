@@ -1,0 +1,10 @@
+weatherApp/src/index.js (javascript code) - The entry point for the React application, rendering the root component.
+weatherApp/src/App.js (javascript code) - The main component that handles fetching weather data and managing the application's state.
+weatherApp/src/components/Header.js (javascript code) - A header component displaying the application title and a search bar for entering city names.
+weatherApp/src/components/WeatherCard.js (javascript code) - A card component that shows current weather data for a specific city, including temperature, condition, and icon.
+weatherApp/src/components/Forecast.js (javascript code) - A component that displays a 5-day weather forecast as a series of small cards.
+weatherApp/src/hooks/useWeather.js (javascript code) - A custom hook that fetches weather data from an external API and handles errors.
+weatherApp/src/utils/api.js (javascript code) - A utility file containing functions for making API requests to a weather service.
+weatherApp/src/styles/main.css (css) - A stylesheet containing the overall layout and theme for the weather dashboard.
+weatherApp/public/index.html (html) - The main HTML file where the React app is injected into the root div.
+weatherApp/package.json (json) - Configuration file specifying project dependencies, scripts, and metadata.
