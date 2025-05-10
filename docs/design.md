@@ -20,6 +20,8 @@ For example, lets imagine we have a command called `new-feature` where we can pr
 myAgent new-feature --name "login page" "create a login page that plugs into our existing auth API"
 ```
 
+I think this specific feature idea will be far too advanced for V1 though. We will start with mostly just analysis tasks.
+
 > In a later version (if this project continues that far), perhaps instead of needing to do all of the commands via command line, we could have an AI agent that is continuously running and taking commands in a different form, such as a chat. But that will be a much later development. By narrowing the interactivity to just CLI, we can instead focus on functionality and making the AI good at actually doing things, rather than focusing on UI/UX.
 
 ### About AI Usage
@@ -60,7 +62,7 @@ At this point, the AI agent will have a good fundamental skillset in the followi
 - performing code review that provides some value to the user; conservative is better, as we don't want lots of excessive, unimportant feedback.
 
 Once these things have been confirmed to be working well, and users can feel usefulness from it, it's time for V 2.0, where the AI agent starts to come to life more.
-This is where the following features would start to be implemented:
+This is where the following features could start to be implemented:
 
 - ability to implement basic features, or at least start out basic features for the user.
   - these new features would be created and put in a new branch. the user will probably expect to go in and test it themselves, confirm it's working, fix issues, etc.
