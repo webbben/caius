@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,16 +57,54 @@ var DescribeProjectSchema json.RawMessage = json.RawMessage(`{
 func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisResponse, error) {
 	sysPrompt := prompts.P_ANALYZE_FILE_01
 
+	// check for reserved file types (pre-defined type/description)
+	reservedFileType := files.ReservedFileMap(fileName)
+	if reservedFileType != "" {
+		return BasicFileAnalysisResponse{
+			Type:        reservedFileType,
+			Description: reservedFileType,
+		}, nil
+	}
+
+	// check for unprocessable file types
+	t := files.UnableToProcessTypes(fileName)
+	if t != "" {
+		return BasicFileAnalysisResponse{
+			Type:        t,
+			Description: "",
+		}, nil
+	}
+
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: failed to get file info;"), err)
+	}
+
 	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
-		return BasicFileAnalysisResponse{}, err
+		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error reading file "+filePath), err)
 	}
+
+	// do a quick scan of the data to confirm it's not compiled binary or unreadable
+	if files.IsProbablyBinaryData(fileContent) {
+		fileType := "binary"
+		desc := "a file containing binary or non-utf8 data."
+		if files.IsFileExecutable(fileInfo) {
+			desc = "an executable file containing binary data"
+		}
+		return BasicFileAnalysisResponse{
+			Type:        fileType,
+			Description: desc,
+		}, nil
+	}
+
 	prompt := fmt.Sprintf("File name: %s\n\nFile content:\n\n%s", fileName, string(fileContent))
 
 	var responseJson BasicFileAnalysisResponse
 	err = llm.GenerateCompletionJson(sysPrompt, prompt, BasicFileAnalysisSchema, &responseJson)
 	if err != nil {
-		return BasicFileAnalysisResponse{}, err
+		log.Println("filePath:", filePath)
+		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error while generating completion;"), err)
 	}
 
 	responseJson.Type = files.FileTypeResolver(responseJson.Type)
@@ -101,22 +140,14 @@ func AnalyzeDirectory(root string) error {
 				remainingDisplay = fmt.Sprintf("%.0fm", remainingMs.Minutes())
 			}
 			fmt.Printf("\rProcessing: %.0f%% (~ %s remaining)", percent, remainingDisplay)
+		} else {
+			fmt.Printf("\rProcessing: %.0f%%", percent)
 		}
-		fmt.Printf("\rProcessing: %.0f%%", percent)
 
 		filename := filepath.Base(file)
 		fileData := FileData{
 			Filename: filename,
 			FullPath: file,
-		}
-
-		// check if file is a "reserved type" - e.g. one that we will assign a predefined description, and skip analysis for.
-		reservedFileType := files.ReservedFileMap(filename)
-		if reservedFileType != "" {
-			fileData.Type = reservedFileType
-			fileData.Description = reservedFileType
-			fileDataList = append(fileDataList, fileData)
-			continue
 		}
 
 		// LLM analysis of file
@@ -128,8 +159,6 @@ func AnalyzeDirectory(root string) error {
 		fileData.Description = fileAnalysisResponse.Description
 		fileDataList = append(fileDataList, fileData)
 	}
-
-	fmt.Println("\r")
 
 	// once we have finished analysis of files, create a document that stores all of this information in an easy-to-digest format for LLMs.
 	// idea:

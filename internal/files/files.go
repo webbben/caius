@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 var skipDirs []string = []string{".git", "node_modules"}
@@ -107,6 +108,7 @@ func FileTypeResolver(fileType string) string {
 
 func ReservedFileMap(filename string) string {
 	filename = strings.ToLower(filename)
+
 	switch filename {
 	case "go.mod":
 		return "golang module manifest"
@@ -123,4 +125,112 @@ func ReservedFileMap(filename string) string {
 	default:
 		return ""
 	}
+}
+
+func UnableToProcessTypes(filename string) string {
+	filename = strings.ToLower(filename)
+
+	if !strings.Contains(filename, ".") {
+		return ""
+	}
+	ext := strings.Split(filename, ".")[1]
+
+	switch ext {
+	// image types
+	case "jpg", "jpeg", "jfif", "pjpeg", "pjp":
+		return "image/jpg"
+	case "png", "apng":
+		return "image/png"
+	case "heic":
+		return "image/heic"
+	case "pdf":
+		return "image/pdf"
+	case "gif":
+		return "image/gif"
+	case "svg":
+		return "image/svg+xml"
+	case "webp":
+		return "image/webp"
+	case "ico", "cur":
+		return "image/x-icon"
+	case "bmp":
+		return "image/bmp"
+	case "tif", "tiff":
+		return "image/tiff"
+	// video types
+	case "avi":
+		return "video/x-msvideo"
+	case "mp4":
+		return "video/mp4"
+	case "mpeg":
+		return "video/mpeg"
+	case "webm":
+		return "video/webm"
+	// audio types
+	case "aac":
+		return "audio/aac"
+	case "mid", "midi":
+		return "audio/midi"
+	case "mp3":
+		return "audio/mp3"
+	case "wav":
+		return "audio/wav"
+	case "weba":
+		return "audio/webm"
+	// compressed data
+	case "gz":
+		return "gzip compressed file"
+	case "zip":
+		return "zip compressed file"
+	case "7z":
+		return "7z compressed file"
+	case "rar":
+		return "rar archive file"
+	case "tar":
+		return "tar archive file"
+	case "jar":
+		return "java archive file"
+	// binaries, executables
+	case "dll":
+		return "windows dynamic library file"
+	case "exe":
+		return "windows executable file"
+	default:
+		return ""
+	}
+}
+
+func IsProbablyBinaryData(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	// limit data for efficiency
+	if len(data) > 8000 {
+		data = data[:8000]
+	}
+
+	valid, invalid := 0, 0
+	for len(data) > 0 {
+		r, size := utf8.DecodeRune(data)
+		if r == utf8.RuneError && size == 1 {
+			invalid++
+		} else {
+			valid++
+		}
+		data = data[size:]
+	}
+
+	total := valid + invalid
+	if total == 0 {
+		// buffer was empty (not enough data to decode even a single rune)
+		return false
+	}
+
+	// if 5% or more of the content is invalid utf8, it's probably binary
+	return float64(invalid)/float64(total) > 0.05
+}
+
+func IsFileExecutable(fileInfo os.FileInfo) bool {
+	mode := fileInfo.Mode()
+	return mode&0111 != 0
 }

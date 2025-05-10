@@ -40,7 +40,11 @@ to quickly create a Cobra application.`,
 		}
 
 		if fileinfo.IsDir() {
-			project.AnalyzeDirectory(path)
+			err := project.AnalyzeDirectory(path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "\nfailed to analyze directory;", err)
+				os.Exit(1)
+			}
 		} else {
 			filename := filepath.Base(path)
 			fmt.Printf("Analyzing %s ...\n", filename)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 
@@ -59,17 +60,26 @@ func GenerateCompletion(systemPrompt string, prompt string) (string, error) {
 func GenerateCompletionJson(systemPrompt string, prompt string, formatSchema json.RawMessage, v any) error {
 	client, err := ollamawrapper.GetClient()
 	if err != nil {
-		return nil
+		return errors.Join(errors.New("GenerateCompletionJson: error getting client;"), err)
 	}
 
 	response, err := ollamawrapper.GenerateCompletionOptsFormat(client, systemPrompt, prompt, map[string]interface{}{
 		"temperature": 0.0,
 	}, formatSchema)
 	if err != nil {
-		return nil
+		return errors.Join(errors.New("GenerateCompletionJson: error generating completion;"), err)
 	}
 
-	return json.Unmarshal([]byte(response), &v)
+	if response == "" {
+		return errors.New("GenerateCompletionJson: error generating completion; no data returned")
+	}
+
+	err = json.Unmarshal([]byte(response), &v)
+	if err != nil {
+		log.Printf("\nresponse:\n%s\n", response)
+		return errors.Join(errors.New("GenerateCompletionJson: error unmarshalling JSON in LLM response;"), err)
+	}
+	return nil
 }
 
 // TODO: delete, now that we have built-in Ollama JSON formatting?
