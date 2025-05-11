@@ -23,8 +23,9 @@ type FileData struct {
 }
 
 type BasicFileAnalysisResponse struct {
-	Type        string `json:"file_type"`
-	Description string `json:"description"`
+	Type              string `json:"file_type"`
+	Description       string `json:"description"`
+	SkipLLMProcessing bool   `json:"skip_llm_processing"` // TODO: not yet used. exclude data from these files when analysing a directory/project
 }
 
 var BasicFileAnalysisSchema json.RawMessage = json.RawMessage(`{
@@ -70,8 +71,9 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	t := files.UnableToProcessTypes(fileName)
 	if t != "" {
 		return BasicFileAnalysisResponse{
-			Type:        t,
-			Description: "",
+			Type:              t,
+			Description:       "",
+			SkipLLMProcessing: true,
 		}, nil
 	}
 
@@ -93,8 +95,9 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 			desc = "an executable file containing binary data"
 		}
 		return BasicFileAnalysisResponse{
-			Type:        fileType,
-			Description: desc,
+			Type:              fileType,
+			Description:       desc,
+			SkipLLMProcessing: true,
 		}, nil
 	}
 
