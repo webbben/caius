@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os/exec"
 	"strings"
 
 	ollamawrapper "github.com/webbben/ollama-wrapper"
@@ -23,13 +22,9 @@ var Models models = models{
 	CodeLlama: "codellama:7b",
 }
 
-func StartServer() (*exec.Cmd, error) {
-	cmd, err := ollamawrapper.StartServer()
-	return cmd, err
-}
-
-func StopServer(cmd *exec.Cmd) error {
-	return ollamawrapper.StopServer(cmd)
+func StartServer() (int32, error) {
+	pid, err := ollamawrapper.StartServer()
+	return pid, err
 }
 
 func SetModel(model string) {
