@@ -66,6 +66,22 @@ func CommonFileExtensionMap(ext string) string {
 	}
 }
 
+func IgnoreFiles(filename string) bool {
+	filename = strings.ToLower(filename)
+
+	if !strings.Contains(filename, ".") {
+		return false
+	}
+	ext := strings.Split(filename, ".")[1]
+
+	switch ext {
+	case "ds_store":
+		return true
+	default:
+		return false
+	}
+}
+
 // given a file type, resolve it to its standardized display form
 func FileTypeResolver(fileType string) string {
 	fileType = strings.ToLower(fileType)

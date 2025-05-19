@@ -12,20 +12,24 @@ import (
 
 	"github.com/webbben/caius/internal/files"
 	"github.com/webbben/caius/internal/llm"
+	"github.com/webbben/caius/internal/utils"
 	"github.com/webbben/caius/prompts"
 )
 
 type FileData struct {
-	Filename    string
-	Type        string
-	Description string
-	FullPath    string
+	Filename          string
+	Type              string
+	Description       string
+	FullPath          string
+	SkipLLMProcessing bool
+	SizeBytes         int64
 }
 
 type BasicFileAnalysisResponse struct {
 	Type              string `json:"file_type"`
 	Description       string `json:"description"`
-	SkipLLMProcessing bool   `json:"skip_llm_processing"` // TODO: not yet used. exclude data from these files when analysing a directory/project
+	SkipLLMProcessing bool   `json:"skip_llm_processing"`
+	SizeBytes         int64  `json:"size_bytes"`
 }
 
 var BasicFileAnalysisSchema json.RawMessage = json.RawMessage(`{
@@ -55,8 +59,40 @@ var DescribeProjectSchema json.RawMessage = json.RawMessage(`{
 	"required": ["description"]
 }`)
 
+// GetProcessableBytes counts the bytes of file data for files that are text based and processed by LLMs.
+// Mainly used for calculating processing time estimates.
+func GetProcessableBytes(fileList []string) (int64, error) {
+	var b int64 = 0
+	for _, file := range fileList {
+		filename := filepath.Base(file)
+		if files.IgnoreFiles(filename) {
+			continue
+		}
+		if files.ReservedFileMap(filename) != "" {
+			continue
+		}
+		if files.UnableToProcessTypes(filename) != "" {
+			continue
+		}
+
+		info, err := os.Stat(file)
+		if err != nil {
+			return 0, err
+		}
+		b += info.Size()
+	}
+
+	return b, nil
+}
+
 func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisResponse, error) {
 	sysPrompt := prompts.P_ANALYZE_FILE_01
+
+	if files.IgnoreFiles(fileName) {
+		return BasicFileAnalysisResponse{
+			SkipLLMProcessing: true,
+		}, nil
+	}
 
 	// check for reserved file types (pre-defined type/description)
 	reservedFileType := files.ReservedFileMap(fileName)
@@ -111,6 +147,7 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	}
 
 	responseJson.Type = files.FileTypeResolver(responseJson.Type)
+	responseJson.SizeBytes = fileInfo.Size()
 
 	return responseJson, nil
 }
@@ -121,31 +158,41 @@ func AnalyzeDirectory(root string) error {
 		return err
 	}
 
-	// for each file found, do some basic analysis:
-	// - detect what type of code or data the file represents
-	//   - if it has a common file extension (e.g. js, ts, go, sh, json, etc) we will handle that programmatically
-	//   - if it doesn't have a recognized extension, then the LLM will analyze the file contents to decide
-	// - AI will analyze the content of the file to give a brief description of its purpose
+	// get number of bytes that will be calculated, for time estimate purposes
+	processBytesTotal, err := GetProcessableBytes(fileList)
+	if err != nil {
+		return utils.WrapError("error calculating processable bytes", err)
+	}
+	var totalBytesProcessed int64 = 0
+	llmProcessedFileCount := 0
+
 	fileDataList := make([]FileData, 0)
 
 	startTime := time.Now()
 
 	for i, file := range fileList {
 		// show progress
+		// percentage of files processed
 		percent := float64(i) / float64(len(fileList)) * 100
-		if i > 0 {
-			averageMs := time.Since(startTime) / time.Duration(i+1)
-			remainingMs := averageMs * time.Duration(len(fileList)-i)
+
+		// we calculate time estimate by average ms per byte of data processed by LLM
+		// LLM processing of data is the only time consuming part of this, and it takes longer for larger files
+		utils.Terminal.ClearLines(2)
+		if i > 0 && totalBytesProcessed > 0 {
+			// average ms per byte
+			averageMs := time.Since(startTime) / time.Duration(totalBytesProcessed)
+			remainingMs := averageMs * time.Duration(processBytesTotal-totalBytesProcessed)
 			remainingDisplay := fmt.Sprintf("%.0fs", remainingMs.Seconds())
 			if remainingMs.Minutes() > 120 {
 				remainingDisplay = fmt.Sprintf("%.0fh", remainingMs.Hours())
 			} else if remainingMs.Seconds() > 120 {
 				remainingDisplay = fmt.Sprintf("%.0fm", remainingMs.Minutes())
 			}
-			fmt.Printf("\rProcessing: %.0f%% (~ %s remaining)", percent, remainingDisplay)
+			fmt.Printf("Processing: %v/%v (%.0f%% ~ %s remaining, ave speed %v ms/byte)", i, len(fileList), percent, remainingDisplay, averageMs)
 		} else {
-			fmt.Printf("\rProcessing: %.0f%%", percent)
+			fmt.Printf("Processing: %v/%v (%.0f%%)", i, len(fileList), percent)
 		}
+		fmt.Printf("\n%s", file)
 
 		filename := filepath.Base(file)
 		fileData := FileData{
@@ -160,7 +207,14 @@ func AnalyzeDirectory(root string) error {
 		}
 		fileData.Type = fileAnalysisResponse.Type
 		fileData.Description = fileAnalysisResponse.Description
+		fileData.SkipLLMProcessing = fileAnalysisResponse.SkipLLMProcessing
+		fileData.SizeBytes = fileAnalysisResponse.SizeBytes
 		fileDataList = append(fileDataList, fileData)
+
+		if !fileData.SkipLLMProcessing {
+			llmProcessedFileCount++
+			totalBytesProcessed += fileData.SizeBytes
+		}
 	}
 
 	// once we have finished analysis of files, create a document that stores all of this information in an easy-to-digest format for LLMs.
@@ -174,6 +228,9 @@ func AnalyzeDirectory(root string) error {
 	projectMap := ""
 
 	for _, filedata := range fileDataList {
+		if filedata.SkipLLMProcessing {
+			continue
+		}
 		trimmedPath := strings.TrimPrefix(filedata.FullPath, root)
 		trimmedPath = filepath.Join(filepath.Base(root), trimmedPath)
 		fmt.Println(trimmedPath, fmt.Sprintf("(%s)", filedata.Type))
