@@ -192,7 +192,7 @@ func AnalyzeDirectory(root string) error {
 		} else {
 			fmt.Printf("Processing: %v/%v (%.0f%%)", i, len(fileList), percent)
 		}
-		fmt.Printf("\n%s", file)
+		utils.Terminal.Lowkey("\n" + file)
 
 		filename := filepath.Base(file)
 		fileData := FileData{
