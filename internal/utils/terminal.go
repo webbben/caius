@@ -7,18 +7,20 @@ import (
 )
 
 type terminal struct {
-	ClearLines func(int)
-
-	Lowkey func(string)
+	ClearLines  func(int)
+	ClearScreen func()
+	Lowkey      func(string)
 }
 
 var Terminal terminal = terminal{
-	ClearLines: clearLines,
-	Lowkey:     lowkey,
+	ClearLines:  clearLines,
+	ClearScreen: clearScreen,
+	Lowkey:      lowkey,
 }
 
 const ansiMoveUp = "\033[A"
 const ansiClearLine = "\033[2K"
+const ansiClearScreen = "\033[2J\033[H"
 
 func clearLines(n int) {
 	for i := 0; i < n; i++ {
@@ -26,6 +28,10 @@ func clearLines(n int) {
 		fmt.Printf(ansiMoveUp)
 	}
 	fmt.Printf("\r")
+}
+
+func clearScreen() {
+	fmt.Print(ansiClearScreen)
 }
 
 func lowkey(s string) {

@@ -11,15 +11,19 @@ import (
 )
 
 type models struct {
-	Llama3    string
-	DeepSeek  string
-	CodeLlama string
+	Llama3       string
+	DeepSeek     string
+	DeepSeek14b  string
+	CodeLlama    string
+	CodeLlama13b string
 }
 
 var Models models = models{
-	Llama3:    "llama3.2:3b",
-	DeepSeek:  "deepseek-r1:7b",
-	CodeLlama: "codellama:7b",
+	Llama3:       "llama3.2:3b",
+	DeepSeek:     "deepseek-r1:7b",
+	DeepSeek14b:  "deepseek-r1:14b",
+	CodeLlama:    "codellama:7b",
+	CodeLlama13b: "codellama:13b",
 }
 
 func StartServer() (int32, error) {

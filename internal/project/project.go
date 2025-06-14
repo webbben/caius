@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/webbben/caius/internal/config"
 	"github.com/webbben/caius/internal/files"
 	"github.com/webbben/caius/internal/llm"
 	"github.com/webbben/caius/internal/utils"
@@ -31,6 +32,24 @@ type BasicFileAnalysisResponse struct {
 	SkipLLMProcessing bool   `json:"skip_llm_processing"`
 	SizeBytes         int64  `json:"size_bytes"`
 }
+
+type DetectFileTypeLLMResponse struct {
+	Category string `json:"category"`
+	Type     string `json:"type"`
+}
+
+var DetectFileTypeLLMSchema json.RawMessage = json.RawMessage(`{
+	"type": "object",
+	"properties": {
+		"category": {
+			"type": "string"
+		},
+		"type": {
+			"type": "string"
+		}
+	},
+	"required": ["category", "type"]
+}`)
 
 var BasicFileAnalysisSchema json.RawMessage = json.RawMessage(`{
 	"type": "object",
@@ -85,6 +104,25 @@ func GetProcessableBytes(fileList []string) (int64, error) {
 	return b, nil
 }
 
+func DetectFileTypeLLM(fileData []byte) (DetectFileTypeLLMResponse, error) {
+	var responseJson DetectFileTypeLLMResponse
+	llm.SetModel(llm.Models.CodeLlama)
+
+	sysPrompt := prompts.P_ANALYZE_FILE_TYPE_01
+	sampleData := fileData
+	if len(sampleData) > config.MAX_BYTES_BASIC_ANALYSIS {
+		sampleData = sampleData[:config.MAX_BYTES_BASIC_ANALYSIS]
+	}
+	prompt := string(sampleData)
+
+	err := llm.GenerateCompletionJson(sysPrompt, prompt, DetectFileTypeLLMSchema, &responseJson)
+	if err != nil {
+		return DetectFileTypeLLMResponse{}, utils.WrapError("detectFileTypeLLM: error while generating completion", err)
+	}
+	responseJson.Type = files.FileTypeResolver(responseJson.Type)
+	return responseJson, nil
+}
+
 func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisResponse, error) {
 	sysPrompt := prompts.P_ANALYZE_FILE_01
 
@@ -137,16 +175,55 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 		}, nil
 	}
 
-	prompt := fmt.Sprintf("File name: %s\n\nFile content:\n\n%s", fileName, string(fileContent))
+	// detect file type
+	filetype := ""
+	if strings.Contains(fileName, ".") {
+		parts := strings.Split(fileName, ".")
+		// handle for filenames with multiple periods (get last extension)
+		ext := parts[len(parts)-1]
+		filetype = files.FileTypeResolver(ext)
+	}
+	if filetype == "" {
+		// failed to determine filetype by extension; use LLM detection
+		// we should avoid this since it could double the file processing time
+		// TODO: add some ways to programmatically detect common programming languages, etc?
+		// e.g. detecting a shebang that indicates how a file will be executed (#!/bin/bash, etc)
+		fileTypeResp, err := DetectFileTypeLLM(fileContent)
+		if err != nil {
+			return BasicFileAnalysisResponse{}, utils.WrapError("AnalyzeFileBasic: error while detecting file type", err)
+		}
+		if fileTypeResp.Type != "" {
+			filetype = fileTypeResp.Type
+		} else if fileTypeResp.Category != "" {
+			filetype = fileTypeResp.Category
+		} else {
+			log.Println("AnalyzeFileBasic: failed to determine a file type")
+		}
+	}
+
+	// do LLM analysis of file
+	header := fmt.Sprintf("File name: %s", fileName)
+	if filetype != "" {
+		header = fmt.Sprintf("%s\nFile type: %s", header, filetype)
+	}
+	prompt := fmt.Sprintf("%s\n\n(file content below)\n\n%s", header, string(fileContent))
 
 	var responseJson BasicFileAnalysisResponse
+	llm.SetModel(llm.Models.CodeLlama)
 	err = llm.GenerateCompletionJson(sysPrompt, prompt, BasicFileAnalysisSchema, &responseJson)
 	if err != nil {
 		log.Println("filePath:", filePath)
 		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error while generating completion;"), err)
 	}
 
-	responseJson.Type = files.FileTypeResolver(responseJson.Type)
+	// use the predetermined filetype if existing
+	// filetype from BasicFileAnalysis seems to be inaccurate sometimes
+	// TODO: remove file type detection from BasicFileAnalysis?
+	if filetype != "" {
+		responseJson.Type = filetype
+	} else {
+		responseJson.Type = files.FileTypeResolver(responseJson.Type)
+	}
 	responseJson.SizeBytes = fileInfo.Size()
 
 	return responseJson, nil
@@ -177,7 +254,7 @@ func AnalyzeDirectory(root string) error {
 
 		// we calculate time estimate by average ms per byte of data processed by LLM
 		// LLM processing of data is the only time consuming part of this, and it takes longer for larger files
-		utils.Terminal.ClearLines(2)
+		utils.Terminal.ClearScreen()
 		if i > 0 && totalBytesProcessed > 0 {
 			// average ms per byte
 			averageMs := time.Since(startTime) / time.Duration(totalBytesProcessed)
@@ -233,10 +310,10 @@ func AnalyzeDirectory(root string) error {
 		}
 		trimmedPath := strings.TrimPrefix(filedata.FullPath, root)
 		trimmedPath = filepath.Join(filepath.Base(root), trimmedPath)
-		fmt.Println(trimmedPath, fmt.Sprintf("(%s)", filedata.Type))
+		utils.Terminal.Lowkey(fmt.Sprintf("%s (%s)", trimmedPath, filedata.Type))
 		projectMap = fmt.Sprintf("%s\n%s (%s) - %s", projectMap, trimmedPath, filedata.Type, filedata.Description)
 		fmt.Println()
-		fmt.Println(filedata.Description)
+		utils.Terminal.Lowkey(filedata.Description)
 		fmt.Println()
 	}
 

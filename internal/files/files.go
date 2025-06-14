@@ -32,40 +32,6 @@ func GetProjectFiles(root string) ([]string, error) {
 	return files, err
 }
 
-func CommonFileExtensionMap(ext string) string {
-	ext = strings.ToLower(ext)
-	switch ext {
-	case "js":
-		return "javascript code"
-	case "jsx":
-		return "javascript/react code"
-	case "ts":
-		return "typescript code"
-	case "tsx":
-		return "typescript/react code"
-	case "mjs":
-		return "javascript code"
-	case "json":
-		return "json data"
-	case "jsonl":
-		return "json lines data"
-	case "go":
-		return "golang code"
-	case "sh":
-		return "shell script/bash code"
-	case "py":
-		return "python code"
-	case "xml":
-		return "xml data"
-	case "yaml":
-		return "yaml data"
-	case "md":
-		return "markdown document"
-	default:
-		return ""
-	}
-}
-
 func IgnoreFiles(filename string) bool {
 	filename = strings.ToLower(filename)
 
@@ -82,7 +48,7 @@ func IgnoreFiles(filename string) bool {
 	}
 }
 
-// given a file type, resolve it to its standardized display form
+// given a file type (name, file extension, etc), resolve it to its standardized display form
 func FileTypeResolver(fileType string) string {
 	fileType = strings.ToLower(fileType)
 	switch fileType {

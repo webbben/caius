@@ -99,6 +99,40 @@ var describeProjectTestCases []describeProjectTestCase = []describeProjectTestCa
 	},
 }
 
+type detectFileTypeLLMTestCase struct {
+	CaseName         string
+	FileName         string
+	ExpectedCategory string
+	ExpectedType     string
+}
+
+var detectFileTypeLLMTestCases []detectFileTypeLLMTestCase = []detectFileTypeLLMTestCase{
+	{
+		CaseName:         "[JS 1] login page",
+		FileName:         "javascript01.txt",
+		ExpectedCategory: "code",
+		ExpectedType:     "javascript code",
+	},
+	{
+		CaseName:         "[JS 2] calculator",
+		FileName:         "javascript02.txt",
+		ExpectedCategory: "code",
+		ExpectedType:     "javascript code",
+	},
+	{
+		CaseName:         "[JS 3] todo list",
+		FileName:         "javascript03.txt",
+		ExpectedCategory: "code",
+		ExpectedType:     "javascript code",
+	},
+	{
+		CaseName:         "[JS 4] theme toggler",
+		FileName:         "javascript04.txt",
+		ExpectedCategory: "code",
+		ExpectedType:     "javascript code",
+	},
+}
+
 func loadFileText(path string) string {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -202,6 +236,48 @@ func TestDescribeProject(t *testing.T) {
 				t.Fail()
 				continue
 			}
+		}
+
+		pass++
+	}
+
+	writeLog(fmt.Sprintf("pass: %v/%v\n", pass, i))
+}
+
+func TestDetectFileTypeLLM(t *testing.T) {
+	resetLog()
+	pass := 0
+	i := 0
+	for _, testCase := range detectFileTypeLLMTestCases {
+		i++
+		writeLog(testCase.CaseName)
+
+		fileData := loadFileText(fmt.Sprintf("tests/analyzeFile/%s", testCase.FileName))
+
+		response, err := DetectFileTypeLLM([]byte(fileData))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to detect file type: %q", err)
+		}
+
+		writeLog("LLM response:")
+		writeLog("Category: " + response.Category)
+		writeLog("Type: " + response.Type)
+
+		fail := false
+
+		if response.Category != testCase.ExpectedCategory {
+			writeLog("wrong category!")
+			writeLog(fmt.Sprintf("Exp: %s, Got: %s", testCase.ExpectedCategory, response.Category))
+			fail = true
+		}
+		if response.Type != testCase.ExpectedType {
+			writeLog("wrong type!")
+			writeLog(fmt.Sprintf("Exp: %s, Got: %s", testCase.ExpectedType, response.Type))
+			fail = true
+		}
+		if fail {
+			t.Fail()
+			continue
 		}
 
 		pass++
