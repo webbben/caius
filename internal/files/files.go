@@ -49,45 +49,46 @@ func IgnoreFiles(filename string) bool {
 	}
 }
 
-// given a file type (name, file extension, etc), resolve it to its standardized display form
-func FileTypeResolver(fileType string) string {
+// given a file type (name, file extension, etc), resolve it to its standardized display form.
+// returns the resolved type, and a boolean indicating if a match was found or not (if not, its just the original input string).
+func FileTypeResolver(fileType string) (string, bool) {
 	fileType = strings.ToLower(fileType)
 	switch fileType {
 	// CONFIG TYPES
 	case "yaml", "yml":
-		return "YAML"
+		return "YAML", true
 	case "xml":
-		return "XML"
+		return "XML", true
 	case "json", "jsonl":
-		return "JSON data"
+		return "JSON data", true
 	// TEXT TYPES
 	case "markdown", "md":
-		return "markdown"
+		return "markdown", true
 	case "text/plain", "plain text", "text", "txt":
-		return "plain text"
+		return "plain text", true
 	case "readme.md", "readme.txt", "readme":
-		return "readme file"
+		return "readme file", true
 	// CODE TYPES
 	case "html", "html5", "hypertext markup language":
-		return "HTML"
+		return "HTML", true
 	case "css", "style sheet", "styles":
-		return "CSS"
+		return "CSS", true
 	case "python", "py":
-		return "python code"
+		return "python code", true
 	case "go", "golang":
-		return "golang code"
+		return "golang code", true
 	case "bash", "sh", "shell":
-		return "bash/shell script"
+		return "bash/shell script", true
 	case "js", "mjs", "javascript":
-		return "javascript code"
+		return "javascript code", true
 	case "jsx", "tsx", "react":
-		return "react code"
+		return "react code", true
 	case "ts", "typescript":
-		return "typescript code"
+		return "typescript code", true
 	case "cs", "c-sharp", "c sharp", "c#":
-		return "c-sharp code"
+		return "c-sharp code", true
 	default:
-		return fileType
+		return fileType, false
 	}
 }
 

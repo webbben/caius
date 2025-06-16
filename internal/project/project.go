@@ -106,8 +106,8 @@ func GetProcessableBytes(fileList []string) (int64, error) {
 
 func DetectFileType(filename string, fileContent []byte) (string, error) {
 	// check file name, in case it has a specific type (e.g. readme files)
-	filetype := files.FileTypeResolver(filename)
-	if filetype != "" {
+	filetype, matchFound := files.FileTypeResolver(filename)
+	if matchFound {
 		return filetype, nil
 	}
 
@@ -116,8 +116,8 @@ func DetectFileType(filename string, fileContent []byte) (string, error) {
 		parts := strings.Split(filename, ".")
 		// handle for filenames with multiple periods (get last extension)
 		ext := parts[len(parts)-1]
-		filetype = files.FileTypeResolver(ext)
-		if filetype != "" {
+		filetype, matchFound = files.FileTypeResolver(ext)
+		if matchFound {
 			return filetype, nil
 		}
 	}
@@ -125,7 +125,8 @@ func DetectFileType(filename string, fileContent []byte) (string, error) {
 	// check if file has a shebang that indicates a programming language script
 	shebangType := files.CheckShebang(fileContent)
 	if shebangType != "" {
-		return files.FileTypeResolver(shebangType), nil
+		filetype, _ = files.FileTypeResolver(shebangType)
+		return filetype, nil
 	}
 
 	// failed to determine filetype by name, extension, content, etc. Last resort: use LLM
@@ -160,7 +161,7 @@ func DetectFileTypeLLM(fileData []byte) (DetectFileTypeLLMResponse, error) {
 	if err != nil {
 		return DetectFileTypeLLMResponse{}, utils.WrapError("detectFileTypeLLM: error while generating completion", err)
 	}
-	responseJson.Type = files.FileTypeResolver(responseJson.Type)
+	responseJson.Type, _ = files.FileTypeResolver(responseJson.Type)
 	return responseJson, nil
 }
 
@@ -243,10 +244,20 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	if filetype != "" {
 		responseJson.Type = filetype
 	} else {
-		responseJson.Type = files.FileTypeResolver(responseJson.Type)
+		responseJson.Type, _ = files.FileTypeResolver(responseJson.Type)
 	}
 	responseJson.SizeBytes = fileInfo.Size()
 
+	// clean up descriptions to be more concise
+	// Note: not removing capitalization since it could give meaning to some parts of the description.
+	desc := responseJson.Description
+
+	// "this file contains ..."
+	desc, _ = strings.CutPrefix(desc, "This file contains")
+	// "this is ..."
+	desc, _ = strings.CutPrefix(desc, "This is")
+
+	responseJson.Description = strings.TrimSpace(desc)
 	return responseJson, nil
 }
 
@@ -352,6 +363,8 @@ func AnalyzeDirectory(root string) error {
 }
 
 func DescribeProject(projectMapString string) (string, error) {
+	fmt.Println("project map:")
+	fmt.Println(projectMapString)
 	var resp DescribeProjectResponse
 	err := llm.GenerateCompletionJson(prompts.P_ANALYZE_FILE_MAP_01, projectMapString, DescribeProjectSchema, &resp)
 	if err != nil {
