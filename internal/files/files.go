@@ -1,6 +1,7 @@
 package files
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -64,6 +65,8 @@ func FileTypeResolver(fileType string) string {
 		return "markdown"
 	case "text/plain", "plain text", "text", "txt":
 		return "plain text"
+	case "readme.md", "readme.txt", "readme":
+		return "readme file"
 	// CODE TYPES
 	case "html", "html5", "hypertext markup language":
 		return "HTML"
@@ -102,8 +105,6 @@ func ReservedFileMap(filename string) string {
 		return "javascript/typescript project dependency lockfile"
 	case ".gitignore":
 		return "gitignore file"
-	case "readme.md", "readme.txt", "readme":
-		return "readme file containing project information/documentation"
 	default:
 		return ""
 	}
@@ -215,4 +216,33 @@ func IsProbablyBinaryData(data []byte) bool {
 func IsFileExecutable(fileInfo os.FileInfo) bool {
 	mode := fileInfo.Mode()
 	return mode&0111 != 0
+}
+
+func CheckShebang(fileData []byte) string {
+	// detect shebang on the first line
+	lines := bytes.SplitN(fileData, []byte("\n"), 2)
+	if len(lines) == 0 {
+		return ""
+	}
+	firstLine := string(lines[0])
+	// no shebang detected
+	if !strings.HasPrefix(firstLine, "#!/") {
+		return ""
+	}
+
+	pathParts := strings.Split(firstLine, "/")
+	lastPart := pathParts[len(pathParts)-1]
+	lastPart, _ = strings.CutPrefix(lastPart, "env ")
+
+	// the last part of the path should indicate which programming language is used
+	switch lastPart {
+	case "bash", "sh":
+		return "bash"
+	case "python", "python3":
+		return "python"
+	case "node":
+		return "javascript"
+	default:
+		return lastPart
+	}
 }

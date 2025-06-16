@@ -104,6 +104,47 @@ func GetProcessableBytes(fileList []string) (int64, error) {
 	return b, nil
 }
 
+func DetectFileType(filename string, fileContent []byte) (string, error) {
+	// check file name, in case it has a specific type (e.g. readme files)
+	filetype := files.FileTypeResolver(filename)
+	if filetype != "" {
+		return filetype, nil
+	}
+
+	// check file extension
+	if strings.Contains(filename, ".") {
+		parts := strings.Split(filename, ".")
+		// handle for filenames with multiple periods (get last extension)
+		ext := parts[len(parts)-1]
+		filetype = files.FileTypeResolver(ext)
+		if filetype != "" {
+			return filetype, nil
+		}
+	}
+
+	// check if file has a shebang that indicates a programming language script
+	shebangType := files.CheckShebang(fileContent)
+	if shebangType != "" {
+		return files.FileTypeResolver(shebangType), nil
+	}
+
+	// failed to determine filetype by name, extension, content, etc. Last resort: use LLM
+	// we should avoid LLM calls whenever possible, since it is relatively expensive in terms of processing time
+	fileTypeResp, err := DetectFileTypeLLM(fileContent)
+	if err != nil {
+		return "", err
+	}
+	if fileTypeResp.Type != "" {
+		return fileTypeResp.Type, nil
+	}
+	if fileTypeResp.Category != "" {
+		return fileTypeResp.Category, nil
+	}
+
+	log.Println("DetectFileTypeLLM: no type or category returned")
+	return "", nil
+}
+
 func DetectFileTypeLLM(fileData []byte) (DetectFileTypeLLMResponse, error) {
 	var responseJson DetectFileTypeLLMResponse
 	llm.SetModel(llm.Models.CodeLlama)
@@ -176,29 +217,9 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	}
 
 	// detect file type
-	filetype := ""
-	if strings.Contains(fileName, ".") {
-		parts := strings.Split(fileName, ".")
-		// handle for filenames with multiple periods (get last extension)
-		ext := parts[len(parts)-1]
-		filetype = files.FileTypeResolver(ext)
-	}
-	if filetype == "" {
-		// failed to determine filetype by extension; use LLM detection
-		// we should avoid this since it could double the file processing time
-		// TODO: add some ways to programmatically detect common programming languages, etc?
-		// e.g. detecting a shebang that indicates how a file will be executed (#!/bin/bash, etc)
-		fileTypeResp, err := DetectFileTypeLLM(fileContent)
-		if err != nil {
-			return BasicFileAnalysisResponse{}, utils.WrapError("AnalyzeFileBasic: error while detecting file type", err)
-		}
-		if fileTypeResp.Type != "" {
-			filetype = fileTypeResp.Type
-		} else if fileTypeResp.Category != "" {
-			filetype = fileTypeResp.Category
-		} else {
-			log.Println("AnalyzeFileBasic: failed to determine a file type")
-		}
+	filetype, err := DetectFileType(fileName, fileContent)
+	if err != nil {
+		return BasicFileAnalysisResponse{}, utils.WrapError("error while detecting filetype in AnalyzeFileBasic:", err)
 	}
 
 	// do LLM analysis of file
