@@ -11,8 +11,8 @@ const MAX_BYTES_BASIC_ANALYSIS int = 1000
 
 // DEBUG CONFIG
 
-const SHOW_FUNCTION_METRICS bool = true
-const SHOW_LLM_METRICS bool = true
+var SHOW_FUNCTION_METRICS bool = true
+var SHOW_LLM_METRICS bool = true
 
 // LLM MODELS
 

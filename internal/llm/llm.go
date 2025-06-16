@@ -11,11 +11,12 @@ import (
 )
 
 type models struct {
-	Llama3       string
-	DeepSeek     string
-	DeepSeek14b  string
-	CodeLlama    string
-	CodeLlama13b string
+	Llama3        string // Ave/Min/Max call time: 1590 ms / 1487 ms / 2483 ms (#1 - fastest)
+	DeepSeek      string // Ave/Min/Max call time: 2348 ms / 1615 ms / 8911 ms (#2)
+	DeepSeek14b   string // Ave/Min/Max call time: 6094 ms / 4645 ms / 18448 ms (#4)
+	DeepSeekCoder string // TODO
+	CodeLlama     string // Ave/Min/Max call time: 4625 ms / 3908 ms / 10885 ms (#3)
+	CodeLlama13b  string // Ave/Min/Max call time: 8245 ms / 6729 ms / 20355 ms (#5 - slowest)
 }
 
 var Models models = models{

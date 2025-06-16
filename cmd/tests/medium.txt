@@ -1,0 +1,80 @@
+class Task {
+  constructor(title, description = '') {
+    this.id = Task.generateId();
+    this.title = title;
+    this.description = description;
+    this.completed = false;
+    this.createdAt = new Date();
+  }
+
+  static generateId() {
+    return Math.floor(Math.random() * 100000);
+  }
+
+  complete() {
+    this.completed = true;
+  }
+
+  toString() {
+    return `${this.completed ? '[x]' : '[ ]'} ${this.title} (ID: ${this.id})`;
+  }
+}
+
+class TaskManager {
+  constructor() {
+    this.tasks = [];
+  }
+
+  addTask(title, description) {
+    const task = new Task(title, description);
+    this.tasks.push(task);
+    console.log(`Task added: ${task.toString()}`);
+    return task.id;
+  }
+
+  removeTask(id) {
+    const index = this.tasks.findIndex(task => task.id === id);
+    if (index >= 0) {
+      const removed = this.tasks.splice(index, 1)[0];
+      console.log(`Task removed: ${removed.toString()}`);
+    } else {
+      console.log(`Task with ID ${id} not found.`);
+    }
+  }
+
+  completeTask(id) {
+    const task = this.tasks.find(task => task.id === id);
+    if (task) {
+      task.complete();
+      console.log(`Task completed: ${task.toString()}`);
+    } else {
+      console.log(`Task with ID ${id} not found.`);
+    }
+  }
+
+  listTasks() {
+    if (this.tasks.length === 0) {
+      console.log('No tasks to show.');
+      return;
+    }
+
+    console.log('Current Tasks:');
+    this.tasks.forEach(task => {
+      console.log(task.toString());
+    });
+  }
+}
+
+// Example usage
+const manager = new TaskManager();
+
+const id1 = manager.addTask('Write documentation', 'Document the API methods');
+const id2 = manager.addTask('Fix bug #123', 'Resolve login redirect issue');
+manager.addTask('Plan team meeting');
+
+manager.listTasks();
+
+manager.completeTask(id1);
+manager.removeTask(id2);
+
+manager.listTasks();

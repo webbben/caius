@@ -71,6 +71,10 @@ type functionExecutionStats struct {
 // for counting stats and metrics globally for execution of different functions
 var ExecStats functionExecutionStats = functionExecutionStats{}
 
+func ResetExecStats() {
+	ExecStats = functionExecutionStats{}
+}
+
 func (f functionExecutionStats) ShowAllMetrics() {
 	if f.AnalyzeFileBasicLLM.numExecutions > 0 {
 		fmt.Println("AnalyzeFileBasicLLM")
@@ -152,3 +156,7 @@ func (m modelUsageStats) ShowAllMetrics() {
 }
 
 var ModelUsageStats modelUsageStats = modelUsageStats{}
+
+func ResetModelUsageStats() {
+	ModelUsageStats = modelUsageStats{}
+}

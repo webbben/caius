@@ -1,3 +1,47 @@
+# 6/16/2025
+
+Today I added some metrics tools for measuring performance of the different LLMs. One of the bottlenecks I've run into is performance, since it can take quite a long time to analyze large directories that have 20, 50, 80 etc files. So, I decided to build out a system that will automatically track the average execution times of each function that uses LLMs, and every LLM call itself.
+
+I've realized now that this is going to be very important. After running some basic tests on the various models I have been experimenting with up until now, I have some pretty interesting results. Here's the data output from test runs on a ~200 line file of mock javascript code:
+
+```
+Llama3
+call count: 10
+Ave/Min/Max call time: 2062 ms / 1503 ms / 7056 ms
+
+DeepSeek
+call count: 10
+Ave/Min/Max call time: 3463 ms / 2357 ms / 13230 ms
+
+DeepSeek14b
+call count: 10
+Ave/Min/Max call time: 7882 ms / 5548 ms / 27539 ms
+
+CodeLlama
+call count: 10
+Ave/Min/Max call time: 5844 ms / 4628 ms / 16686 ms
+
+CodeLlama13b
+call count: 10
+Ave/Min/Max call time: 8756 ms / 6415 ms / 28898 ms
+```
+
+From these results, it's clear that `Llama3` is the fastest (the 7 second case seemed to be a bit of an outlier that happened on first execution).
+Interestingly, `DeepSeek` performed second best. I thought DeepSeek would be less performant since it usually spends some time thinking to itself.
+
+`CodeLlama` was actually perhaps the worst performing model; the smaller model took 5-6 seconds to analyze the file, and the 13b model took almost 9 seconds on average. I recently made the switch to using CodeLlama, so this was very useful to see. If it turns out that other models like Llama3 or Deepseek perform just as well as CodeLlama for the analysis tasks (like making a description for a file) then I will definitely be switching away from CodeLlama. Perhaps CodeLlama is more well suited for writing code rather than reading and describing.
+
+> I also remember reading the documentation for CodeLlama, and it seemed to have some specific syntax for different prompt types. Maybe I need to look into that.
+
+I recently found out there is a `DeepSeek-coder` model out now - I saw a random article about it when searching for "deepseek vs codellama". So I think next I'll wanna get that model into my test suite to find out how its performance compares to the other models.
+
+Also, this test only considers response time. I'm going to need to come up with a way to also simultaneously test the accuracy, so that I can see if there are tradeoffs there too. Maybe just log the answer each model gives, and compare them myself?
+
+Next things to do:
+
+- test `DeepSeek-coder`
+- switch to using faster models like Llama3 or DeepSeek (stop using CodeLlama if accuracy doesn't deteriorate)
+
 # 5/30/2025
 
 At the point of writing, we have some basic functionality implemented for describing files and entire projects. For describing individual files, it just passes the source code directly into an LLM to get a description. For describing an entire project, it runs the individual file analysis on each file, and records the description of each file (in 1 or 2 sentences, roughly). Then, it feeds all the file paths and their descriptions into an LLM to assess what the entire project does overall. It actually works quite well.
