@@ -8,7 +8,9 @@ import (
 	"os"
 
 	"github.com/webbben/caius/cmd"
+	"github.com/webbben/caius/internal/config"
 	"github.com/webbben/caius/internal/llm"
+	"github.com/webbben/caius/internal/metrics"
 	ollamawrapper "github.com/webbben/ollama-wrapper"
 )
 
@@ -26,4 +28,13 @@ func main() {
 	llm.SetModel(llm.Models.DeepSeek)
 
 	cmd.Execute()
+
+	if config.SHOW_FUNCTION_METRICS {
+		fmt.Println()
+		metrics.ExecStats.ShowAllMetrics()
+	}
+	if config.SHOW_LLM_METRICS {
+		fmt.Println()
+		metrics.ModelUsageStats.ShowAllMetrics()
+	}
 }

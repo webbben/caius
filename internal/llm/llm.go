@@ -3,10 +3,10 @@ package llm
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
-	"strings"
+	"time"
 
+	"github.com/webbben/caius/internal/metrics"
 	ollamawrapper "github.com/webbben/ollama-wrapper"
 )
 
@@ -26,6 +26,24 @@ var Models models = models{
 	CodeLlama13b: "codellama:13b",
 }
 
+func RecordLLMUsage(startTime time.Time) {
+	curModel := ollamawrapper.GetModel()
+	switch curModel {
+	case "llama3.2:3b":
+		metrics.ModelUsageStats.Llama3.RecordUsage(startTime)
+	case "deepseek-r1:7b":
+		metrics.ModelUsageStats.DeepSeek.RecordUsage(startTime)
+	case "deepseek-r1:14b":
+		metrics.ModelUsageStats.DeepSeek14b.RecordUsage(startTime)
+	case "codellama:7b":
+		metrics.ModelUsageStats.CodeLlama.RecordUsage(startTime)
+	case "codellama:13b":
+		metrics.ModelUsageStats.CodeLlama13b.RecordUsage(startTime)
+	default:
+		log.Println("RecordLLMUsage: current model not found in switch statement! Do you need to add a new one?")
+	}
+}
+
 func StartServer() (int32, error) {
 	pid, err := ollamawrapper.StartServer()
 	return pid, err
@@ -35,28 +53,8 @@ func SetModel(model string) {
 	ollamawrapper.SetModel(model)
 }
 
-func GenerateCompletion(systemPrompt string, prompt string) (string, error) {
-	client, err := ollamawrapper.GetClient()
-	if err != nil {
-		return "", err
-	}
-
-	response, err := ollamawrapper.GenerateCompletionWithOpts(client, systemPrompt, prompt, map[string]interface{}{
-		"temperature": 0.0,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	cleanedString, err := extractJsonString(response)
-	if err != nil {
-		return "", err
-	}
-
-	return cleanedString, nil
-}
-
 func GenerateCompletionJson(systemPrompt string, prompt string, formatSchema json.RawMessage, v any) error {
+	start := time.Now()
 	client, err := ollamawrapper.GetClient()
 	if err != nil {
 		return errors.Join(errors.New("GenerateCompletionJson: error getting client;"), err)
@@ -78,22 +76,7 @@ func GenerateCompletionJson(systemPrompt string, prompt string, formatSchema jso
 		log.Printf("\nresponse:\n%s\n", response)
 		return errors.Join(errors.New("GenerateCompletionJson: error unmarshalling JSON in LLM response;"), err)
 	}
-	return nil
-}
 
-// TODO: delete, now that we have built-in Ollama JSON formatting?
-func extractJsonString(s string) (string, error) {
-	if !strings.Contains(s, "{") || !strings.Contains(s, "}") {
-		return "", errors.New("malformed json given; missing opening or closing bracket")
-	}
-	if s[0] != '{' {
-		// cut the first portion before the beginning bracket
-		s = strings.Join(strings.Split(s, "{")[1:], "")
-	}
-	if s[len(s)-1] != '}' {
-		parts := strings.Split(s, "}")
-		s = strings.Join(parts[:len(parts)-1], "")
-	}
-	s = strings.TrimSpace(s)
-	return fmt.Sprintf("{%s}", s), nil
+	RecordLLMUsage(start)
+	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/webbben/caius/internal/llm"
+	"github.com/webbben/caius/internal/metrics"
 )
 
 func resetLog() {
@@ -254,7 +255,7 @@ func TestDetectFileTypeLLM(t *testing.T) {
 
 		fileData := loadFileText(fmt.Sprintf("tests/analyzeFile/%s", testCase.FileName))
 
-		response, err := DetectFileTypeLLM([]byte(fileData))
+		response, err := DetectFileTypeLLM([]byte(fileData), &metrics.FileContext{})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to detect file type: %q", err)
 		}

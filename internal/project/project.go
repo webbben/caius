@@ -13,20 +13,22 @@ import (
 	"github.com/webbben/caius/internal/config"
 	"github.com/webbben/caius/internal/files"
 	"github.com/webbben/caius/internal/llm"
+	"github.com/webbben/caius/internal/metrics"
 	"github.com/webbben/caius/internal/utils"
 	"github.com/webbben/caius/prompts"
 )
 
 type FileData struct {
 	Filename          string
-	Type              string
-	Description       string
+	Type              string // The type of data in this file
+	Description       string // Description of what this file contains
 	FullPath          string
-	SkipLLMProcessing bool
+	SkipLLMProcessing bool // Indicates if LLM should not bother analyzing file content
 	SizeBytes         int64
 }
 
 type BasicFileAnalysisResponse struct {
+	SKIP              bool   // if true, this file data will be discarded and not used anywhere
 	Type              string `json:"file_type"`
 	Description       string `json:"description"`
 	SkipLLMProcessing bool   `json:"skip_llm_processing"`
@@ -104,7 +106,7 @@ func GetProcessableBytes(fileList []string) (int64, error) {
 	return b, nil
 }
 
-func DetectFileType(filename string, fileContent []byte) (string, error) {
+func DetectFileType(filename string, fileContent []byte, ctx *metrics.FileContext) (string, error) {
 	// check file name, in case it has a specific type (e.g. readme files)
 	filetype, matchFound := files.FileTypeResolver(filename)
 	if matchFound {
@@ -131,7 +133,7 @@ func DetectFileType(filename string, fileContent []byte) (string, error) {
 
 	// failed to determine filetype by name, extension, content, etc. Last resort: use LLM
 	// we should avoid LLM calls whenever possible, since it is relatively expensive in terms of processing time
-	fileTypeResp, err := DetectFileTypeLLM(fileContent)
+	fileTypeResp, err := DetectFileTypeLLM(fileContent, ctx)
 	if err != nil {
 		return "", err
 	}
@@ -146,9 +148,9 @@ func DetectFileType(filename string, fileContent []byte) (string, error) {
 	return "", nil
 }
 
-func DetectFileTypeLLM(fileData []byte) (DetectFileTypeLLMResponse, error) {
+func DetectFileTypeLLM(fileData []byte, ctx *metrics.FileContext) (DetectFileTypeLLMResponse, error) {
 	var responseJson DetectFileTypeLLMResponse
-	llm.SetModel(llm.Models.CodeLlama)
+	llm.SetModel(config.DETECT_FILE_TYPE_MODEL)
 
 	sysPrompt := prompts.P_ANALYZE_FILE_TYPE_01
 	sampleData := fileData
@@ -157,16 +159,20 @@ func DetectFileTypeLLM(fileData []byte) (DetectFileTypeLLMResponse, error) {
 	}
 	prompt := string(sampleData)
 
+	start := time.Now()
 	err := llm.GenerateCompletionJson(sysPrompt, prompt, DetectFileTypeLLMSchema, &responseJson)
 	if err != nil {
 		return DetectFileTypeLLMResponse{}, utils.WrapError("detectFileTypeLLM: error while generating completion", err)
 	}
+	metrics.ExecStats.DetectFileTypeLLM.AddNewRecord(time.Since(start).Milliseconds(), *ctx)
+
 	responseJson.Type, _ = files.FileTypeResolver(responseJson.Type)
 	return responseJson, nil
 }
 
 func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisResponse, error) {
-	sysPrompt := prompts.P_ANALYZE_FILE_01
+	ctx := &metrics.FileContext{}
+	ctx.CurrentFilepath = filePath
 
 	if files.IgnoreFiles(fileName) {
 		return BasicFileAnalysisResponse{
@@ -178,8 +184,9 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	reservedFileType := files.ReservedFileMap(fileName)
 	if reservedFileType != "" {
 		return BasicFileAnalysisResponse{
-			Type:        reservedFileType,
-			Description: reservedFileType,
+			Type:              reservedFileType,
+			Description:       reservedFileType,
+			SkipLLMProcessing: true, // to skip insertion in basic project map
 		}, nil
 	}
 
@@ -197,6 +204,11 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	if err != nil {
 		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: failed to get file info;"), err)
 	}
+	if fileInfo.Size() == 0 {
+		// empty file - ignore
+		return BasicFileAnalysisResponse{SKIP: true}, nil
+	}
+	ctx.FileBytes = fileInfo.Size()
 
 	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
@@ -218,7 +230,7 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	}
 
 	// detect file type
-	filetype, err := DetectFileType(fileName, fileContent)
+	filetype, err := DetectFileType(fileName, fileContent, ctx)
 	if err != nil {
 		return BasicFileAnalysisResponse{}, utils.WrapError("error while detecting filetype in AnalyzeFileBasic:", err)
 	}
@@ -231,12 +243,15 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	prompt := fmt.Sprintf("%s\n\n(file content below)\n\n%s", header, string(fileContent))
 
 	var responseJson BasicFileAnalysisResponse
-	llm.SetModel(llm.Models.CodeLlama)
+	llm.SetModel(config.BASIC_FILE_ANALYSIS_MODEL)
+	start := time.Now()
+	sysPrompt := prompts.P_ANALYZE_FILE_01
 	err = llm.GenerateCompletionJson(sysPrompt, prompt, BasicFileAnalysisSchema, &responseJson)
 	if err != nil {
 		log.Println("filePath:", filePath)
 		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error while generating completion;"), err)
 	}
+	metrics.ExecStats.AnalyzeFileBasicLLM.AddNewRecord(time.Since(start).Milliseconds(), *ctx)
 
 	// use the predetermined filetype if existing
 	// filetype from BasicFileAnalysis seems to be inaccurate sometimes
@@ -256,13 +271,15 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	desc, _ = strings.CutPrefix(desc, "This file contains")
 	// "this is ..."
 	desc, _ = strings.CutPrefix(desc, "This is")
+	// "this file is ..."
+	desc, _ = strings.CutPrefix(desc, "This file is")
 
 	responseJson.Description = strings.TrimSpace(desc)
 	return responseJson, nil
 }
 
 func AnalyzeDirectory(root string) error {
-	fileList, err := files.GetProjectFiles(root)
+	fileList, err := files.GetProjectFiles(root, files.GetProjectFilesOptions{SkipDotfiles: true})
 	if err != nil {
 		return err
 	}
@@ -314,6 +331,10 @@ func AnalyzeDirectory(root string) error {
 		if err != nil {
 			return err
 		}
+		if fileAnalysisResponse.SKIP {
+			continue
+		}
+
 		fileData.Type = fileAnalysisResponse.Type
 		fileData.Description = fileAnalysisResponse.Description
 		fileData.SkipLLMProcessing = fileAnalysisResponse.SkipLLMProcessing
@@ -342,11 +363,7 @@ func AnalyzeDirectory(root string) error {
 		}
 		trimmedPath := strings.TrimPrefix(filedata.FullPath, root)
 		trimmedPath = filepath.Join(filepath.Base(root), trimmedPath)
-		utils.Terminal.Lowkey(fmt.Sprintf("%s (%s)", trimmedPath, filedata.Type))
 		projectMap = fmt.Sprintf("%s\n%s (%s) - %s", projectMap, trimmedPath, filedata.Type, filedata.Description)
-		fmt.Println()
-		utils.Terminal.Lowkey(filedata.Description)
-		fmt.Println()
 	}
 
 	projectMap = strings.TrimSpace(projectMap)
@@ -363,8 +380,8 @@ func AnalyzeDirectory(root string) error {
 }
 
 func DescribeProject(projectMapString string) (string, error) {
-	fmt.Println("project map:")
-	fmt.Println(projectMapString)
+	utils.Terminal.Lowkey("project map:")
+	utils.Terminal.Lowkey(projectMapString)
 	var resp DescribeProjectResponse
 	err := llm.GenerateCompletionJson(prompts.P_ANALYZE_FILE_MAP_01, projectMapString, DescribeProjectSchema, &resp)
 	if err != nil {

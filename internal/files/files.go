@@ -13,7 +13,11 @@ import (
 
 var skipDirs []string = []string{".git", "node_modules"}
 
-func GetProjectFiles(root string) ([]string, error) {
+type GetProjectFilesOptions struct {
+	SkipDotfiles bool // if true, "dotfiles" (files or directories starting with a period) will be skipped
+}
+
+func GetProjectFiles(root string, op GetProjectFilesOptions) ([]string, error) {
 	files := make([]string, 0)
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -21,10 +25,16 @@ func GetProjectFiles(root string) ([]string, error) {
 			return err
 		}
 		if d.IsDir() {
+			if op.SkipDotfiles && d.Name()[0] == '.' {
+				return fs.SkipDir
+			}
 			if slices.Contains(skipDirs, d.Name()) {
 				return fs.SkipDir
 			}
 		} else {
+			if op.SkipDotfiles && filepath.Base(path)[0] == '.' {
+				return nil
+			}
 			files = append(files, path)
 		}
 		return nil
