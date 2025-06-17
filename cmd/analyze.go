@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/webbben/caius/internal/metrics"
 	"github.com/webbben/caius/internal/project"
+	"github.com/webbben/caius/internal/utils"
 )
 
 // analyzeCmd represents the analyze command
@@ -45,6 +48,8 @@ to quickly create a Cobra application.`,
 				fmt.Fprintln(os.Stderr, "\nfailed to analyze directory;", err)
 				os.Exit(1)
 			}
+			elapsed := metrics.SpeedRecord("AnalyzeDirectory").GetAverageDuration().Round(time.Second)
+			utils.Terminal.Lowkey(fmt.Sprintf("(%s elapsed)", elapsed))
 		} else {
 			filename := filepath.Base(path)
 			fmt.Printf("Analyzing %s ...\n", filename)

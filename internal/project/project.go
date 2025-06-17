@@ -80,10 +80,11 @@ var DescribeProjectSchema json.RawMessage = json.RawMessage(`{
 	"required": ["description"]
 }`)
 
-// GetProcessableBytes counts the bytes of file data for files that are text based and processed by LLMs.
+// GetProcessableFileInfo counts the number of files (and their size) for files that are text based and processed by LLMs.
 // Mainly used for calculating processing time estimates.
-func GetProcessableBytes(fileList []string) (int64, error) {
+func GetProcessableFileInfo(fileList []string) (int, int64, error) {
 	var b int64 = 0
+	fileCount := 0
 	for _, file := range fileList {
 		filename := filepath.Base(file)
 		if files.IgnoreFiles(filename) {
@@ -98,12 +99,13 @@ func GetProcessableBytes(fileList []string) (int64, error) {
 
 		info, err := os.Stat(file)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 		b += info.Size()
+		fileCount++
 	}
 
-	return b, nil
+	return fileCount, b, nil
 }
 
 func DetectFileType(filename string, fileContent []byte, ctx *metrics.FileContext) (string, error) {
@@ -281,6 +283,7 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 }
 
 func AnalyzeDirectory(root string) error {
+	start := time.Now()
 	fileList, err := files.GetProjectFiles(root, files.GetProjectFilesOptions{SkipDotfiles: true})
 	if err != nil {
 		return err
@@ -291,6 +294,12 @@ func AnalyzeDirectory(root string) error {
 
 	fileDataList := make([]FileData, 0)
 
+	// get number of LLM processable files, for calculating time estimate
+	llmProcessableFileCount, _, err := GetProcessableFileInfo(fileList)
+	if err != nil {
+		return utils.WrapError("error while calculating processable file info;", err)
+	}
+
 	for i, file := range fileList {
 		// show progress
 		// percentage of files processed
@@ -299,7 +308,7 @@ func AnalyzeDirectory(root string) error {
 		// show time estimate
 		utils.Terminal.ClearScreen()
 		if i > 0 {
-			remainingCount := len(fileList) - i
+			remainingCount := llmProcessableFileCount - i
 			remainingTime := metrics.SpeedRecord("AnalyzeFileBasic").CalculateTimeEstimate(remainingCount)
 			estimateString := ""
 			if remainingTime > 0 {
@@ -368,6 +377,8 @@ func AnalyzeDirectory(root string) error {
 	}
 
 	fmt.Println(projectDesc)
+
+	metrics.AddSpeedRecord("AnalyzeDirectory", start, metrics.FileContext{})
 
 	return nil
 }
