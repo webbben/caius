@@ -11,10 +11,10 @@ const MAX_BYTES_BASIC_ANALYSIS int = 1000
 
 // DEBUG CONFIG
 
-var SHOW_FUNCTION_METRICS bool = true
+var SHOW_FUNCTION_METRICS bool = false
 var SHOW_LLM_METRICS bool = true
 
 // LLM MODELS
 
-var BASIC_FILE_ANALYSIS_MODEL = llm.Models.CodeLlama
-var DETECT_FILE_TYPE_MODEL = llm.Models.CodeLlama
+var BASIC_FILE_ANALYSIS_MODEL = llm.Models.DeepSeekCoder
+var DETECT_FILE_TYPE_MODEL = llm.Models.DeepSeekCoder

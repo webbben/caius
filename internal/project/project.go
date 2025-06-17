@@ -149,6 +149,7 @@ func DetectFileType(filename string, fileContent []byte, ctx *metrics.FileContex
 }
 
 func DetectFileTypeLLM(fileData []byte, ctx *metrics.FileContext) (DetectFileTypeLLMResponse, error) {
+	start := time.Now()
 	var responseJson DetectFileTypeLLMResponse
 	llm.SetModel(config.DETECT_FILE_TYPE_MODEL)
 
@@ -159,20 +160,21 @@ func DetectFileTypeLLM(fileData []byte, ctx *metrics.FileContext) (DetectFileTyp
 	}
 	prompt := string(sampleData)
 
-	start := time.Now()
 	err := llm.GenerateCompletionJson(sysPrompt, prompt, DetectFileTypeLLMSchema, &responseJson)
 	if err != nil {
 		return DetectFileTypeLLMResponse{}, utils.WrapError("detectFileTypeLLM: error while generating completion", err)
 	}
-	metrics.ExecStats.DetectFileTypeLLM.AddNewRecord(time.Since(start).Milliseconds(), *ctx)
 
 	responseJson.Type, _ = files.FileTypeResolver(responseJson.Type)
+
+	metrics.AddSpeedRecord("DetectFileTypeLLM", start, *ctx)
 	return responseJson, nil
 }
 
 func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisResponse, error) {
+	start := time.Now()
 	ctx := &metrics.FileContext{}
-	ctx.CurrentFilepath = filePath
+	ctx.Filepath = filePath
 
 	if files.IgnoreFiles(fileName) {
 		return BasicFileAnalysisResponse{
@@ -244,14 +246,12 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 
 	var responseJson BasicFileAnalysisResponse
 	llm.SetModel(config.BASIC_FILE_ANALYSIS_MODEL)
-	start := time.Now()
 	sysPrompt := prompts.P_ANALYZE_FILE_01
 	err = llm.GenerateCompletionJson(sysPrompt, prompt, BasicFileAnalysisSchema, &responseJson)
 	if err != nil {
 		log.Println("filePath:", filePath)
 		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error while generating completion;"), err)
 	}
-	metrics.ExecStats.AnalyzeFileBasicLLM.AddNewRecord(time.Since(start).Milliseconds(), *ctx)
 
 	// use the predetermined filetype if existing
 	// filetype from BasicFileAnalysis seems to be inaccurate sometimes
@@ -275,6 +275,8 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	desc, _ = strings.CutPrefix(desc, "This file is")
 
 	responseJson.Description = strings.TrimSpace(desc)
+
+	metrics.AddSpeedRecord("AnalyzeFileBasic", start, *ctx)
 	return responseJson, nil
 }
 
@@ -284,39 +286,28 @@ func AnalyzeDirectory(root string) error {
 		return err
 	}
 
-	// get number of bytes that will be calculated, for time estimate purposes
-	processBytesTotal, err := GetProcessableBytes(fileList)
-	if err != nil {
-		return utils.WrapError("error calculating processable bytes", err)
-	}
 	var totalBytesProcessed int64 = 0
 	llmProcessedFileCount := 0
 
 	fileDataList := make([]FileData, 0)
-
-	startTime := time.Now()
 
 	for i, file := range fileList {
 		// show progress
 		// percentage of files processed
 		percent := float64(i) / float64(len(fileList)) * 100
 
-		// we calculate time estimate by average ms per byte of data processed by LLM
-		// LLM processing of data is the only time consuming part of this, and it takes longer for larger files
+		// show time estimate
 		utils.Terminal.ClearScreen()
-		if i > 0 && totalBytesProcessed > 0 {
-			// average ms per byte
-			averageMs := time.Since(startTime) / time.Duration(totalBytesProcessed)
-			remainingMs := averageMs * time.Duration(processBytesTotal-totalBytesProcessed)
-			remainingDisplay := fmt.Sprintf("%.0fs", remainingMs.Seconds())
-			if remainingMs.Minutes() > 120 {
-				remainingDisplay = fmt.Sprintf("%.0fh", remainingMs.Hours())
-			} else if remainingMs.Seconds() > 120 {
-				remainingDisplay = fmt.Sprintf("%.0fm", remainingMs.Minutes())
+		if i > 0 {
+			remainingCount := len(fileList) - i
+			remainingTime := metrics.SpeedRecord("AnalyzeFileBasic").CalculateTimeEstimate(remainingCount)
+			estimateString := ""
+			if remainingTime > 0 {
+				estimateString = fmt.Sprintf("(%.0f%% ~ %s)", percent, remainingTime)
 			}
-			fmt.Printf("Processing: %v/%v (%.0f%% ~ %s remaining, ave speed %v ms/byte)", i, len(fileList), percent, remainingDisplay, averageMs)
+			fmt.Printf("Processing: %v/%v %s", i+1, len(fileList), utils.Terminal.LowkeyS(estimateString))
 		} else {
-			fmt.Printf("Processing: %v/%v (%.0f%%)", i, len(fileList), percent)
+			fmt.Printf("Processing: %v/%v", i, len(fileList))
 		}
 		utils.Terminal.Lowkey("\n" + file)
 
@@ -346,6 +337,8 @@ func AnalyzeDirectory(root string) error {
 			totalBytesProcessed += fileData.SizeBytes
 		}
 	}
+
+	utils.Terminal.ClearScreen()
 
 	// once we have finished analysis of files, create a document that stores all of this information in an easy-to-digest format for LLMs.
 	// idea:
@@ -383,6 +376,7 @@ func DescribeProject(projectMapString string) (string, error) {
 	utils.Terminal.Lowkey("project map:")
 	utils.Terminal.Lowkey(projectMapString)
 	var resp DescribeProjectResponse
+	llm.SetModel(llm.Models.DeepSeek)
 	err := llm.GenerateCompletionJson(prompts.P_ANALYZE_FILE_MAP_01, projectMapString, DescribeProjectSchema, &resp)
 	if err != nil {
 		return "", err

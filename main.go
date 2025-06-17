@@ -31,7 +31,6 @@ func main() {
 
 	if config.SHOW_FUNCTION_METRICS {
 		fmt.Println()
-		metrics.ExecStats.ShowAllMetrics()
 	}
 	if config.SHOW_LLM_METRICS {
 		fmt.Println()

@@ -10,12 +10,14 @@ type terminal struct {
 	ClearLines  func(int)
 	ClearScreen func()
 	Lowkey      func(string)
+	LowkeyS     func(string) string
 }
 
 var Terminal terminal = terminal{
 	ClearLines:  clearLines,
 	ClearScreen: clearScreen,
 	Lowkey:      lowkey,
+	LowkeyS:     lowkeyS,
 }
 
 const ansiMoveUp = "\033[A"
@@ -36,4 +38,8 @@ func clearScreen() {
 
 func lowkey(s string) {
 	color.New(color.FgHiBlack).Println(s)
+}
+
+func lowkeyS(s string) string {
+	return color.New(color.FgHiBlack).Sprint(s)
 }
