@@ -25,15 +25,16 @@ var testCmd = &cobra.Command{
 		config.SHOW_FUNCTION_METRICS = false
 		config.SHOW_LLM_METRICS = false
 
+		path := ""
+		if len(args) > 0 {
+			path = args[0]
+		}
+
 		testsPath, err := filepath.Abs("cmd/tests")
 		if err != nil {
 			panic(err)
 		}
 
-		path := ""
-		if len(args) > 0 {
-			path = args[0]
-		}
 		switch path {
 		case "short":
 			path = filepath.Join(testsPath, "short.txt")
@@ -46,51 +47,41 @@ var testCmd = &cobra.Command{
 			log.Println("default: short")
 		}
 
-		const N = 10
-
-		config.BASIC_FILE_ANALYSIS_MODEL = llm.Models.Llama3
-		for i := range N {
-			_, err := project.AnalyzeFileBasic(path, "index.js")
-			if err != nil {
-				panic(err)
-			}
-			utils.Terminal.Lowkey(fmt.Sprintf("Model: %s, Runs %v/%v", "Llama3", i+1, N))
-		}
-		config.BASIC_FILE_ANALYSIS_MODEL = llm.Models.CodeLlama
-		for i := range N {
-			_, err := project.AnalyzeFileBasic(path, "index.js")
-			if err != nil {
-				panic(err)
-			}
-			utils.Terminal.Lowkey(fmt.Sprintf("Model: %s, Runs %v/%v", "CodeLlama", i+1, N))
-		}
-		config.BASIC_FILE_ANALYSIS_MODEL = llm.Models.CodeLlama13b
-		for i := range N {
-			_, err := project.AnalyzeFileBasic(path, "index.js")
-			if err != nil {
-				panic(err)
-			}
-			utils.Terminal.Lowkey(fmt.Sprintf("Model: %s, Runs %v/%v", "CodeLlama13b", i+1, N))
-		}
-		config.BASIC_FILE_ANALYSIS_MODEL = llm.Models.DeepSeek
-		for i := range N {
-			_, err := project.AnalyzeFileBasic(path, "index.js")
-			if err != nil {
-				panic(err)
-			}
-			utils.Terminal.Lowkey(fmt.Sprintf("Model: %s, Runs %v/%v", "DeepSeek", i+1, N))
-		}
-		config.BASIC_FILE_ANALYSIS_MODEL = llm.Models.DeepSeek14b
-		for i := range N {
-			_, err := project.AnalyzeFileBasic(path, "index.js")
-			if err != nil {
-				panic(err)
-			}
-			utils.Terminal.Lowkey(fmt.Sprintf("Model: %s, Runs %v/%v", "DeepSeek14b", i+1, N))
-		}
-
-		metrics.ModelUsageStats.ShowAllMetrics()
+		speedTest(path)
 	},
+}
+
+func speedTest(path string) {
+	const N = 10
+
+	var r project.BasicFileAnalysisResponse
+	var err error
+
+	models := []string{
+		llm.Models.Llama3, llm.Models.CodeLlama, llm.Models.CodeLlama13b, llm.Models.DeepSeek, llm.Models.DeepSeek14b, llm.Models.DeepSeekCoder, llm.Models.DeepSeekCoder6b,
+	}
+
+	for _, model := range models {
+		config.BASIC_FILE_ANALYSIS_MODEL = model
+
+		// "wake up" the model to ensure it's not running slowly on first call
+		utils.Terminal.Lowkey("waking up " + model + "...")
+		llm.SetModel(model)
+		llm.WakeUp()
+		utils.Terminal.Lowkey("... done")
+
+		for i := range N {
+			r, err = project.AnalyzeFileBasic(path, "index.js")
+			if err != nil {
+				panic(err)
+			}
+			utils.Terminal.Lowkey(fmt.Sprintf("Model: %s, Run %v/%v", model, i+1, N))
+		}
+		utils.Terminal.Lowkey("output: " + r.Description)
+	}
+
+	metrics.ShowAllModelUsageMetrics()
+
 }
 
 func init() {

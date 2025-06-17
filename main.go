@@ -35,6 +35,6 @@ func main() {
 	}
 	if config.SHOW_LLM_METRICS {
 		fmt.Println()
-		metrics.ModelUsageStats.ShowAllMetrics()
+		metrics.ShowAllModelUsageMetrics()
 	}
 }

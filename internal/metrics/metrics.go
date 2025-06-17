@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// if true, LLM usage stats will be recorded
+var LOG_LLM_USAGE bool = true
+
 type FileContext struct {
 	CurrentFilepath string
 	FileBytes       int64
@@ -119,44 +122,23 @@ func (m *modelUsage) RecordUsage(startTime time.Time) {
 	}
 }
 
-type modelUsageStats struct {
-	Llama3       modelUsage
-	DeepSeek     modelUsage
-	DeepSeek14b  modelUsage
-	CodeLlama    modelUsage
-	CodeLlama13b modelUsage
+var modelUsageMap map[string]*modelUsage = map[string]*modelUsage{}
+
+func RecordModelUsage(modelName string, startTime time.Time) {
+	if _, ok := modelUsageMap[modelName]; !ok {
+		modelUsageMap[modelName] = &modelUsage{}
+	}
+
+	modelUsageMap[modelName].RecordUsage(startTime)
 }
 
-func (m modelUsageStats) ShowAllMetrics() {
-	s := ""
-	if m.Llama3.callCount > 0 {
-		s += "Llama3\n"
-		s += fmt.Sprintf("%s\n", m.Llama3)
+func ShowAllModelUsageMetrics() {
+	for modelName, usage := range modelUsageMap {
+		fmt.Println(modelName)
+		fmt.Printf("%s\n", usage)
 	}
-	if m.DeepSeek.callCount > 0 {
-		s += "DeepSeek\n"
-		s += fmt.Sprintf("%s\n", m.DeepSeek)
-	}
-	if m.DeepSeek14b.callCount > 0 {
-		s += "DeepSeek14b\n"
-		s += fmt.Sprintf("%s\n", m.DeepSeek14b)
-	}
-	if m.CodeLlama.callCount > 0 {
-		s += "CodeLlama\n"
-		s += fmt.Sprintf("%s\n", m.CodeLlama)
-	}
-	if m.CodeLlama13b.callCount > 0 {
-		s += "CodeLlama13b\n"
-		s += fmt.Sprintf("%s\n", m.CodeLlama13b)
-	}
-	if s == "" {
-		s = "No LLM models called."
-	}
-	fmt.Println(s)
 }
-
-var ModelUsageStats modelUsageStats = modelUsageStats{}
 
 func ResetModelUsageStats() {
-	ModelUsageStats = modelUsageStats{}
+	modelUsageMap = map[string]*modelUsage{}
 }

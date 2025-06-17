@@ -1,3 +1,9 @@
+# 6/17/2025
+
+Ran performance tests on the deepseek-coder models, and wow... they are fast. Deepseek-coder:1.3b ran in only 500 ms on average for the 200 line sample javascript file, which blows the other models out of the water. The description it gives seems perfectly fine, and is even more succinct which probably is better anyway; when generating a description for a whole directory/project, it just feeds a list of all the files and their descriptions to an LLM so more succinct descriptions is preferable in that case.
+
+I think for now, deepseek-coder:1.3b is going to be the new default LLM for file analysis. And perhaps the larger parameter one for larger files? Not sure how parameter count plays into handling larger file sizes, etc yet.
+
 # 6/16/2025
 
 Today I added some metrics tools for measuring performance of the different LLMs. One of the bottlenecks I've run into is performance, since it can take quite a long time to analyze large directories that have 20, 50, 80 etc files. So, I decided to build out a system that will automatically track the average execution times of each function that uses LLMs, and every LLM call itself.
