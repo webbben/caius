@@ -46,6 +46,10 @@ func GetProjectFiles(root string, op GetProjectFilesOptions) ([]string, error) {
 func IgnoreFiles(filename string) bool {
 	filename = strings.ToLower(filename)
 
+	if filename == "license" {
+		return true
+	}
+
 	if !strings.Contains(filename, ".") {
 		return false
 	}

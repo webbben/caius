@@ -252,7 +252,13 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	err = llm.GenerateCompletionJson(sysPrompt, prompt, BasicFileAnalysisSchema, &responseJson)
 	if err != nil {
 		log.Println("filePath:", filePath)
-		return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error while generating completion;"), err)
+		if err == llm.EmptyResponseError {
+			log.Println(err)
+			log.Println("skipping file")
+			return BasicFileAnalysisResponse{SKIP: true}, nil
+		} else {
+			return BasicFileAnalysisResponse{}, errors.Join(errors.New("analyze file: error while generating completion;"), err)
+		}
 	}
 
 	// use the predetermined filetype if existing

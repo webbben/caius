@@ -87,6 +87,8 @@ func WakeUp() error {
 	return err
 }
 
+var EmptyResponseError = errors.New("GenerateCompletionJson: no data returned by LLM")
+
 func GenerateCompletionJson(systemPrompt string, prompt string, formatSchema json.RawMessage, v any) error {
 	start := time.Now()
 	client, err := ollamawrapper.GetClient()
@@ -102,7 +104,7 @@ func GenerateCompletionJson(systemPrompt string, prompt string, formatSchema jso
 	}
 
 	if response == "" {
-		return errors.New("GenerateCompletionJson: error generating completion; no data returned")
+		return EmptyResponseError
 	}
 
 	err = json.Unmarshal([]byte(response), &v)
