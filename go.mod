@@ -8,6 +8,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/spf13/cobra v1.9.1
 	github.com/webbben/ollama-wrapper v1.2.0
+	golang.org/x/net v0.42.0
 )
 
 require (
@@ -24,6 +25,5 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 )
