@@ -43,11 +43,12 @@ to quickly create a Cobra application.`,
 		}
 
 		if fileinfo.IsDir() {
-			err := project.AnalyzeDirectory(path)
+			output, err := project.AnalyzeDirectory(path)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "\nfailed to analyze directory;", err)
 				os.Exit(1)
 			}
+			fmt.Println(output)
 			elapsed := metrics.SpeedRecord("AnalyzeDirectory").GetAverageDuration().Round(time.Second)
 			utils.Terminal.Lowkey(fmt.Sprintf("(%s elapsed)", elapsed))
 		} else {

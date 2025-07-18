@@ -1,3 +1,32 @@
+# 6/18/2025
+
+I think the AnalyzeDirectory function gets a bit bogged down when there are too many files to consider all at once. This probably mainly happens when there are lots of subdirectories. So, I'm considering changing the function to first analyze sub-directories, get a description for them, then consider the descriptions of all the sub-directories together to get the entire project's description. For example:
+
+```
+/project/abc/file1.js
+/project/abc/file2.js
+/project/abc/file3.js
+/project/def/file4.js
+/project/def/file5.js
+/project/def/file6.js
+/project/index.js
+/project/util.js
+```
+
+Using that approach, we would first analyze and get descriptions for the directories `abc` and `def`. Then, in the final analysis to describe `project`, we would be considering something like this:
+
+```
+/project/abc/ - javascript module for doing A, B, and C
+/project/def/ - javascript module for doing D, E, and F
+/project/index.js - javascript module which serves as the entry point of a todo list application
+/project/util.js - utility functions to handle various misc tasks
+```
+
+The question now is, what's the best way to accomplish this programmatically?
+
+Currently, after analyzing a directory, we create a "project map" which is just a list of all the file paths and their descriptions (like the example above).
+I'm thinking, maybe we can take that data and "compress" some of the information in the lower level directories. Maybe, we have a line limit, and we just repeatedly compress lower level directories until we are within the line limit, then submit that all to the final analysis.
+
 # 6/17/2025
 
 Ran performance tests on the deepseek-coder models, and wow... they are fast. Deepseek-coder:1.3b ran in only 500 ms on average for the 200 line sample javascript file, which blows the other models out of the water. The description it gives seems perfectly fine, and is even more succinct which probably is better anyway; when generating a description for a whole directory/project, it just feeds a list of all the files and their descriptions to an LLM so more succinct descriptions is preferable in that case.

@@ -288,11 +288,11 @@ func AnalyzeFileBasic(filePath string, fileName string) (BasicFileAnalysisRespon
 	return responseJson, nil
 }
 
-func AnalyzeDirectory(root string) error {
+func AnalyzeDirectory(root string) (string, error) {
 	start := time.Now()
 	fileList, err := files.GetProjectFiles(root, files.GetProjectFilesOptions{SkipDotfiles: true})
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	var totalBytesProcessed int64 = 0
@@ -303,7 +303,7 @@ func AnalyzeDirectory(root string) error {
 	// get number of LLM processable files, for calculating time estimate
 	llmProcessableFileCount, _, err := GetProcessableFileInfo(fileList)
 	if err != nil {
-		return utils.WrapError("error while calculating processable file info;", err)
+		return "", utils.WrapError("error while calculating processable file info;", err)
 	}
 
 	for i, file := range fileList {
@@ -335,7 +335,7 @@ func AnalyzeDirectory(root string) error {
 		// LLM analysis of file
 		fileAnalysisResponse, err := AnalyzeFileBasic(file, filename)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if fileAnalysisResponse.SKIP {
 			continue
@@ -379,14 +379,14 @@ func AnalyzeDirectory(root string) error {
 	// get AI description of entire directory, based on combined file analyses
 	projectDesc, err := DescribeProject(projectMap)
 	if err != nil {
-		return errors.Join(errors.New("error generating project description"), err)
+		return "", errors.Join(errors.New("error generating project description"), err)
 	}
 
 	fmt.Println(projectDesc)
 
 	metrics.AddSpeedRecord("AnalyzeDirectory", start, metrics.FileContext{})
 
-	return nil
+	return "", nil
 }
 
 func DescribeProject(projectMapString string) (string, error) {

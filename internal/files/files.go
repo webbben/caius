@@ -43,6 +43,20 @@ func GetProjectFiles(root string, op GetProjectFilesOptions) ([]string, error) {
 	return files, err
 }
 
+// GroupFilesByDirectory groups all files that share the same directory and maps them to their directory path
+// TODO: might use this in a mechanism that "compresses" directories in the AnalyzeDirectory workflow.
+func GroupFilesByDirectory(fileList []string) map[string][]string {
+	m := map[string][]string{}
+	for _, filePath := range fileList {
+		directoryPath := filepath.Dir(filePath)
+		if _, exists := m[directoryPath]; !exists {
+			m[directoryPath] = []string{}
+		}
+		m[directoryPath] = append(m[directoryPath], filePath)
+	}
+	return m
+}
+
 func IgnoreFiles(filename string) bool {
 	filename = strings.ToLower(filename)
 
