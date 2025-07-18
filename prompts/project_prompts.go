@@ -78,3 +78,11 @@ Tell me the "category" from the list above, and then give the specific "type":
 - if the category is "text", then tell me if it's plain text, markdown, etc.
 - if the category is "config", then tell me if it's JSON, YAML, etc.
 `
+
+var P_SUMMARIZE_WEBSITE string = `
+Given the content of a website, summarize its content.
+`
+
+var P_SUMMARIZE_WEBSITE_LIST string = `
+You will be given multiple summaries of different websites and their content. Create a summary for all the content and give a report of all the combined information.
+`

@@ -1,3 +1,11 @@
+# 7/18/2025
+
+Coincidentally getting back to this exactly 1 month since last time! Turns out this dev journal is useful, because I had completely forgotten what I was working on before. I might make a separate list of Tasks too, just to keep track of what is currently in progress.
+
+I've decided to move on from the below idea of "compressing" directories. Partly because I'm more interested now in creating a new function that will let users search the internet and get summarized results from the AI. I think this could be important anyway for our AI agent in the future, but also a useful feature as a stand-alone tool.
+
+For the "Web Search" feature, I think I'll use the Brave Search API, which seems to have a free tier. I thought of trying to scrape the web, but a lot of search engines seem to have protections in place to keep bots and web scrapers from working effectively. I might be able to hack through those protections, but it seems likely that I'd need to keep updating and fixing it in the future, whereas an API will hopefully remain stable.
+
 # 6/18/2025
 
 I think the AnalyzeDirectory function gets a bit bogged down when there are too many files to consider all at once. This probably mainly happens when there are lots of subdirectories. So, I'm considering changing the function to first analyze sub-directories, get a description for them, then consider the descriptions of all the sub-directories together to get the entire project's description. For example:

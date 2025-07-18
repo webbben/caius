@@ -116,3 +116,25 @@ func GenerateCompletionJson(systemPrompt string, prompt string, formatSchema jso
 	RecordLLMUsage(start)
 	return nil
 }
+
+// GenerateSimpleCompletion generates a completion without a JSON format, or anything fancy like that. Just plain ol' text.
+func GenerateSimpleCompletion(systemPrompt string, prompt string) (string, error) {
+	start := time.Now()
+	client, err := ollamawrapper.GetClient()
+	if err != nil {
+		return "", errors.Join(errors.New("GenerateSimpleCompletion: error getting client;"), err)
+	}
+
+	response, err := ollamawrapper.GenerateCompletionWithOpts(client, systemPrompt, prompt, map[string]interface{}{
+		"temperature": 0.0,
+	})
+	if err != nil {
+		return "", errors.Join(errors.New("GenerateSimpleCompletion: error generating completion;"), err)
+	}
+	if response == "" {
+		return "", EmptyResponseError
+	}
+
+	RecordLLMUsage(start)
+	return response, nil
+}
